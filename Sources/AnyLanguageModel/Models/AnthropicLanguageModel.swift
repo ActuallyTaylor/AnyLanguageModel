@@ -99,6 +99,9 @@ public struct AnthropicLanguageModel: LanguageModel {
         /// allowing you to pass additional options not explicitly modeled.
         public var extraBody: [String: JSONValue]?
 
+        /// How much effort the model should put into the response.
+        ///
+        /// Sent as `output_config.effort`. Supported levels depend on the model.
         public var effort: Effort?
 
         // MARK: - Nested Types
@@ -185,14 +188,16 @@ public struct AnthropicLanguageModel: LanguageModel {
             /// The type of thinking to use.
             public var type: ThinkingType
 
-            /// The maximum number of tokens to use for thinking. Nil when `type` = `.adaptive`.
+            /// The maximum number of tokens to use for thinking. Omitted for adaptive thinking.
             ///
             /// This budget is the maximum number of tokens the model can use for its
             /// internal reasoning process. Larger budgets can improve response quality
             /// for complex tasks but increase latency and cost.
             public var budgetTokens: Int?
 
-            /// How thinking should be displayed.
+            /// How thinking should be returned by the API.
+            ///
+            /// Thinking content is not currently exposed in session responses or snapshots.
             public var display: ThinkingDisplay?
 
             /// The type of thinking mode.
@@ -228,21 +233,22 @@ public struct AnthropicLanguageModel: LanguageModel {
                 self.budgetTokens = budgetTokens
                 self.display = display
             }
-            
+
+            /// Creates an enabled thinking configuration with a token budget.
+            ///
+            /// - Parameter budgetTokens: The maximum number of tokens to use for thinking.
             public init(budgetTokens: Int) {
-                self.type = .enabled
-                self.budgetTokens = budgetTokens
-                self.display = nil
+                self.init(type: .enabled, budgetTokens: budgetTokens, display: nil)
             }
 
             /// Convenience function for enabling adaptive thinking on supported models.
             public static func adaptive(display: ThinkingDisplay? = nil) -> Thinking {
-                return Thinking.init(type: .adaptive, budgetTokens: nil, display: display)
+                Thinking(type: .adaptive, budgetTokens: nil, display: display)
             }
 
             /// Convenience function for enabling thinking with a token budget on supported models.
             public static func enabled(budgetTokens: Int, display: ThinkingDisplay? = nil) -> Thinking {
-                return Thinking.init(type: .enabled, budgetTokens: budgetTokens, display: display)
+                Thinking(type: .enabled, budgetTokens: budgetTokens, display: display)
             }
         }
 
@@ -260,28 +266,18 @@ public struct AnthropicLanguageModel: LanguageModel {
 
         /// How much effort the model should put into a task.
         ///
-        /// Docs: https://platform.claude.com/docs/en/build-with-claude/effort
+        /// Supported levels vary by model. See the
+        /// [Anthropic effort documentation](https://platform.claude.com/docs/en/build-with-claude/effort).
         public enum Effort: String, Hashable, Codable, Sendable {
-            /// Absolute maximum capability with no constraints on token spending.
-            ///
-            /// Use Case: Tasks requiring the deepest possible reasoning and most thorough analysis
-            /// Availability: Claude Fable 5, Claude Mythos 5, Claude Opus 4.8, Claude Mythos Preview, Claude Opus 4.7, Claude Opus 4.6, Claude Sonnet 5, and Claude Sonnet 4.6.
+            /// The highest effort level for the most demanding tasks.
             case max
-            /// Extended capability for long-horizon work.
-            /// Use Case: Long-running agentic and coding tasks (over 30 minutes) with token budgets in the millions
-            /// Availability: Claude Fable 5, Claude Mythos 5, Claude Opus 4.8, Claude Opus 4.7, and Claude Sonnet 5.
+            /// Extended effort for long-running agentic and coding tasks.
             case extraHigh = "xhigh"
-            /// High capability. Equivalent to not setting the parameter.
-            /// Use Case: Complex reasoning, difficult coding problems, agentic tasks
-            /// Availability: All Models
+            /// High effort, equivalent to omitting the parameter.
             case high
-            /// Balanced approach with moderate token savings.
-            /// Use Case: Agentic tasks that require a balance of speed, cost, and performance
-            /// Availability: All Models
+            /// Moderate effort that balances capability and token usage.
             case medium
-            /// Most efficient. Significant token savings with some capability reduction.
-            /// Use Case: Simpler tasks that need the best speed and lowest costs, like subagents
-            /// Availability: All Models
+            /// Lower effort that prioritizes speed and token efficiency.
             case low
         }
 
@@ -647,15 +643,10 @@ private func createMessageParams(
             params["service_tier"] = .string(serviceTier.rawValue)
         }
         if let effort = customOptions.effort {
-            // If output_config was previously set during the response schema options, we need to append insert into that dictionary instead of replacing it.
-            if let output_config = params["output_config"], var object = output_config.objectValue {
-                object["effort"] = .string(effort.rawValue)
-                params["output_config"] = .object(object)
-            } else {
-                params["output_config"] = .object([
-                    "effort": .string(effort.rawValue)
-                ])
-            }
+            // Preserve the structured output format when adding effort.
+            var outputConfig = params["output_config"]?.objectValue ?? [:]
+            outputConfig["effort"] = .string(effort.rawValue)
+            params["output_config"] = .object(outputConfig)
         }
         if let thinking = customOptions.thinking {
             var thinkingObject: [String: JSONValue] = [

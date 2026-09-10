@@ -152,7 +152,7 @@ struct AnthropicCustomOptionsTests {
             stopSequences: ["END", "STOP"],
             metadata: .init(userID: "user-123"),
             toolChoice: .auto,
-            thinking: .init(type: .enabled, budgetTokens: 1024, display: .summarized),
+            thinking: .enabled(budgetTokens: 1024, display: .summarized),
             serviceTier: .priority,
             extraBody: ["custom_param": .string("value")]
         )
@@ -189,8 +189,9 @@ struct AnthropicCustomOptionsTests {
             stopSequences: ["END"],
             metadata: .init(userID: "user-123"),
             toolChoice: .tool(name: "my_tool"),
-            thinking: .init(type: .enabled, budgetTokens: 2048, display: .summarized),
-            serviceTier: .standard
+            thinking: .enabled(budgetTokens: 2048, display: .summarized),
+            serviceTier: .standard,
+            effort: .extraHigh
         )
 
         let data = try JSONEncoder().encode(options)
@@ -212,6 +213,7 @@ struct AnthropicCustomOptionsTests {
         #expect(options.thinking == nil)
         #expect(options.serviceTier == nil)
         #expect(options.extraBody == nil)
+        #expect(options.effort == nil)
     }
 
     @Test func integrationWithGenerationOptions() {
@@ -220,7 +222,7 @@ struct AnthropicCustomOptionsTests {
             topP: 0.9,
             topK: 40,
             stopSequences: ["END"],
-            thinking: .init(type: .enabled, budgetTokens: 4096, display: .summarized)
+            thinking: .enabled(budgetTokens: 4096, display: .summarized)
         )
 
         let retrieved = options[custom: AnthropicLanguageModel.self]
@@ -296,8 +298,7 @@ struct AnthropicCustomOptionsTests {
     }
 
     @Test func thinkingCodable() throws {
-        let thinking = AnthropicLanguageModel.CustomGenerationOptions.Thinking(
-            type: .enabled,
+        let thinking = AnthropicLanguageModel.CustomGenerationOptions.Thinking.enabled(
             budgetTokens: 8192,
             display: .summarized
         )
@@ -325,6 +326,28 @@ struct AnthropicCustomOptionsTests {
         #expect(AnthropicLanguageModel.CustomGenerationOptions.ServiceTier.priority.rawValue == "priority")
     }
 
+    @Test func legacyThinkingInitializer() throws {
+        let thinking = AnthropicLanguageModel.CustomGenerationOptions.Thinking(budgetTokens: 2048)
+        #expect(thinking == .enabled(budgetTokens: 2048))
+        let json = try JSONDecoder().decode(
+            [String: JSONValue].self,
+            from: JSONEncoder().encode(thinking)
+        )
+        #expect(json == ["type": .string("enabled"), "budget_tokens": .int(2048)])
+    }
+
+    @Test func adaptiveThinkingCodable() throws {
+        typealias Thinking = AnthropicLanguageModel.CustomGenerationOptions.Thinking
+        for thinking in [Thinking.adaptive(), .adaptive(display: .omitted), .adaptive(display: .summarized)] {
+            let data = try JSONEncoder().encode(thinking)
+            let json = try JSONDecoder().decode([String: JSONValue].self, from: data)
+            #expect(json["type"] == .string("adaptive"))
+            #expect(json["budget_tokens"] == nil)
+            #expect(json["display"] == thinking.display.map { .string($0.rawValue) })
+            #expect(try JSONDecoder().decode(Thinking.self, from: data) == thinking)
+        }
+    }
+
     @Test func thinkingDisplayValues() {
         #expect(AnthropicLanguageModel.CustomGenerationOptions.Thinking.ThinkingDisplay.omitted.rawValue == "omitted")
         #expect(
@@ -346,10 +369,10 @@ struct AnthropicCustomOptionsTests {
 
     @Test func thinkingEnabledConvenience() {
         let thinking = AnthropicLanguageModel.CustomGenerationOptions.Thinking.enabled(
-            budgetTokens: 10,
+            budgetTokens: 1024,
             display: .summarized
         )
-        #expect(thinking.budgetTokens == 10)
+        #expect(thinking.budgetTokens == 1024)
         #expect(thinking.display == .summarized)
         #expect(thinking.type == .enabled)
     }
