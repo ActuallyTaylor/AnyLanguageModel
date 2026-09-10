@@ -1260,8 +1260,6 @@ private enum AnthropicStreamEvent: Codable, Sendable {
             }
 
             /// Cryptographic signature for a completed thinking block.
-            ///
-            /// Emitted at the end of a thinking block, even when ``CustomGenerationOptions/Thinking/display`` is set to `omitted`.
             struct SignatureDelta: Codable, Sendable {
                 let type: String
                 let signature: String
