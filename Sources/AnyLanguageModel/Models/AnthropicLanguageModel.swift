@@ -186,6 +186,9 @@ public struct AnthropicLanguageModel: LanguageModel {
         }
 
         /// Configuration for extended thinking.
+        ///
+        /// Enabled thinking requires a token budget, and adaptive thinking must omit it.
+        /// Encoding an invalid combination throws `EncodingError.invalidValue`.
         public struct Thinking: Hashable, Codable, Sendable {
             /// The type of thinking to use.
             public var type: ThinkingType
@@ -222,6 +225,27 @@ public struct AnthropicLanguageModel: LanguageModel {
                 case type
                 case budgetTokens = "budget_tokens"
                 case display
+            }
+
+            public func encode(to encoder: any Encoder) throws {
+                switch (type, budgetTokens) {
+                case (.enabled, nil), (.adaptive, .some):
+                    throw EncodingError.invalidValue(
+                        self,
+                        .init(
+                            codingPath: encoder.codingPath,
+                            debugDescription:
+                                "Enabled thinking requires a token budget; adaptive thinking must omit it."
+                        )
+                    )
+                default:
+                    break
+                }
+
+                var container = encoder.container(keyedBy: CodingKeys.self)
+                try container.encode(type, forKey: .type)
+                try container.encodeIfPresent(budgetTokens, forKey: .budgetTokens)
+                try container.encodeIfPresent(display, forKey: .display)
             }
 
             /// Creates a thinking configuration.
@@ -651,17 +675,7 @@ private func createMessageParams(
             params["output_config"] = .object(outputConfig)
         }
         if let thinking = customOptions.thinking {
-            var thinkingObject: [String: JSONValue] = [
-                "type": .string(thinking.type.rawValue)
-            ]
-            if let budget = thinking.budgetTokens {
-                thinkingObject["budget_tokens"] = .int(budget)
-            }
-            if let display = thinking.display {
-                thinkingObject["display"] = .string(display.rawValue)
-            }
-
-            params["thinking"] = .object(thinkingObject)
+            params["thinking"] = try JSONValue(thinking)
         }
         // Merge custom extraBody into the request
         if let extraBody = customOptions.extraBody {

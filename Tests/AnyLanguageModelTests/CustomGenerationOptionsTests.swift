@@ -348,6 +348,44 @@ struct AnthropicCustomOptionsTests {
         }
     }
 
+    @Test func mutatedThinkingRejectsInvalidEncoding() {
+        typealias Thinking = AnthropicLanguageModel.CustomGenerationOptions.Thinking
+        var changedToAdaptive = Thinking.enabled(budgetTokens: 2048)
+        changedToAdaptive.type = .adaptive
+        var changedToEnabled = Thinking.adaptive()
+        changedToEnabled.type = .enabled
+        var removedBudget = Thinking.enabled(budgetTokens: 2048)
+        removedBudget.budgetTokens = nil
+        var addedBudget = Thinking.adaptive()
+        addedBudget.budgetTokens = 2048
+
+        for thinking in [changedToAdaptive, changedToEnabled, removedBudget, addedBudget] {
+            #expect(throws: EncodingError.self) {
+                try JSONEncoder().encode(thinking)
+            }
+        }
+    }
+
+    @Test(arguments: [
+        #"{"type":"enabled"}"#,
+        #"{"type":"enabled","budget_tokens":null}"#,
+        #"{"type":"adaptive","budget_tokens":2048}"#,
+    ])
+    func decodedThinkingRejectsInvalidEncoding(json: String) throws {
+        let thinking = try JSONDecoder().decode(
+            AnthropicLanguageModel.CustomGenerationOptions.Thinking.self,
+            from: Data(json.utf8)
+        )
+        let options = AnthropicLanguageModel.CustomGenerationOptions(thinking: thinking)
+        do {
+            _ = try JSONEncoder().encode(options)
+            Issue.record("Expected invalid thinking configuration to fail encoding")
+        } catch EncodingError.invalidValue(_, let context) {
+            #expect(context.codingPath.map(\.stringValue) == ["thinking"])
+            #expect(context.debugDescription.contains("token budget"))
+        }
+    }
+
     @Test func thinkingDisplayValues() {
         #expect(AnthropicLanguageModel.CustomGenerationOptions.Thinking.ThinkingDisplay.omitted.rawValue == "omitted")
         #expect(

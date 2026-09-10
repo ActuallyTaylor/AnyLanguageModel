@@ -181,6 +181,32 @@ struct AnthropicLanguageModelTests {
             return try JSONDecoder().decode([String: JSONValue].self, from: body)
         }
 
+        @Test(arguments: [false, true], [false, true])
+        func invalidThinkingFailsBeforeSending(adaptive: Bool, streaming: Bool) async throws {
+            AnthropicRequestURLProtocol.body.withLock { $0 = nil }
+            var thinking = AnthropicLanguageModel.CustomGenerationOptions.Thinking.enabled(budgetTokens: 2048)
+            if adaptive {
+                thinking.type = .adaptive
+            } else {
+                thinking.budgetTokens = nil
+            }
+            var options = GenerationOptions(maximumResponseTokens: 4096)
+            options[custom: AnthropicLanguageModel.self] = .init(thinking: thinking)
+            let session = makeSession()
+
+            do {
+                if streaming {
+                    for try await _ in session.streamResponse(to: "Answer", options: options) {}
+                } else {
+                    _ = try await session.respond(to: "Answer", options: options)
+                }
+                Issue.record("Expected invalid thinking configuration to fail before sending")
+            } catch EncodingError.invalidValue(_, let context) {
+                #expect(context.debugDescription.contains("token budget"))
+            }
+            #expect(AnthropicRequestURLProtocol.body.withLock { $0 } == nil)
+        }
+
         @Test(arguments: [
             AnthropicLanguageModel.CustomGenerationOptions.Effort.low, .medium, .high, .extraHigh, .max,
         ])
