@@ -810,9 +810,8 @@ options[custom: AnthropicLanguageModel.self] = .init(
 Effort levels are `.low`, `.medium`, `.high`, `.extraHigh`, and `.max`;
 [support varies by model](https://platform.claude.com/docs/en/build-with-claude/effort).
 The existing `Thinking(budgetTokens:)` initializer remains available.
-Thinking text and signatures are not currently exposed in session responses or
-streaming snapshots, and signed thinking blocks are not preserved for tool-call
-follow-ups.
+Thinking text and signatures are not currently exposed in session responses or streaming snapshots,
+and signed thinking blocks are not preserved for tool-call follow-ups.
 
 ### Google Gemini
 
