@@ -223,19 +223,19 @@ public struct AnthropicLanguageModel: LanguageModel {
             ///   - type: The type of thinking to perform.
             ///   - budgetTokens: The maximum number of tokens to use for thinking. Only required when `type` == `.enabled`.
             ///   - display: The display type for thoughts.
-            public init(type: ThinkingType, budgetTokens: Int?, display: ThinkingDisplay?) {
+            private init(type: ThinkingType, budgetTokens: Int?, display: ThinkingDisplay?) {
                 self.type = type
                 self.budgetTokens = budgetTokens
                 self.display = display
             }
 
             /// Convenience function for enabling adaptive thinking on supported models.
-            public static func adaptive(display: ThinkingDisplay?) -> Thinking {
+            public static func adaptive(display: ThinkingDisplay? = nil) -> Thinking {
                 return Thinking.init(type: .adaptive, budgetTokens: nil, display: display)
             }
 
             /// Convenience function for enabling thinking with a token budget on supported models.
-            public static func enabled(budgetTokens: Int, display: ThinkingDisplay?) -> Thinking {
+            public static func enabled(budgetTokens: Int, display: ThinkingDisplay? = nil) -> Thinking {
                 return Thinking.init(type: .enabled, budgetTokens: budgetTokens, display: display)
             }
         }
