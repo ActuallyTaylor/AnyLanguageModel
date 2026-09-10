@@ -101,7 +101,9 @@ public struct AnthropicLanguageModel: LanguageModel {
 
         /// How much effort the model should put into the response.
         ///
-        /// Sent as `output_config.effort`. Supported levels depend on the model.
+        /// Higher effort can improve results on difficult tasks but may use more tokens.
+        /// Not every model accepts every effort level.
+        /// When `nil`, the request omits this option and uses the API's default effort.
         public var effort: Effort?
 
         // MARK: - Nested Types
