@@ -228,6 +228,12 @@ public struct AnthropicLanguageModel: LanguageModel {
                 self.budgetTokens = budgetTokens
                 self.display = display
             }
+            
+            public init(budgetTokens: Int) {
+                self.type = .enabled
+                self.budgetTokens = budgetTokens
+                self.display = nil
+            }
 
             /// Convenience function for enabling adaptive thinking on supported models.
             public static func adaptive(display: ThinkingDisplay? = nil) -> Thinking {
