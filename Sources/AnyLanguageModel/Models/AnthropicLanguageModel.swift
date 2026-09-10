@@ -1262,7 +1262,6 @@ private enum AnthropicStreamEvent: Codable, Sendable {
             /// Cryptographic signature for a completed thinking block.
             ///
             /// Emitted at the end of a thinking block, even when ``CustomGenerationOptions/Thinking/display`` is set to `omitted`.
-            /// The signature must be preserved verbatim for thought to be recovered in the transcript. Otherwise the Claude API will throw out any text provided in thinking blocks.
             struct SignatureDelta: Codable, Sendable {
                 let type: String
                 let signature: String
